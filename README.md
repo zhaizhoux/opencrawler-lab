@@ -188,6 +188,19 @@ python scripts/benchmark.py            # 内存生成 400 个页面，测 4/16/6
 
 ---
 
+## 发布到 GitHub
+
+本地已完成 `git init` + 首次提交 + `origin` 配置 + 源码归档；远程仓库创建与推送需要
+GitHub 账号授权，脚本不会伪造发布结果。三种方式（Token 一键脚本 / GitHub 连接器 /
+手动导入 zip）见 [PUBLISH.md](PUBLISH.md)。
+
+```bash
+export GITHUB_TOKEN=ghp_xxx
+python scripts/publish_github.py --repo opencrawler-lab
+```
+
+---
+
 ## 测试
 
 ```bash

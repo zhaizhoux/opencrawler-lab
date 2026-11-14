@@ -1,0 +1,9 @@
+{
+  "seeds": ["https://example.com/"],
+  "max_pages": 100,
+  "max_depth": 3,
+  "concurrency": 8,
+  "per_domain_concurrency": 2,
+  "default_delay_ms": 1000,
+  "output_dir": "./output"
+}

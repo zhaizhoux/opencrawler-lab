@@ -188,21 +188,6 @@ python scripts/benchmark.py            # 内存生成 400 个页面，测 4/16/6
 
 ---
 
-## 发布到 GitHub
-
-本地已完成 `git init` + 2 次提交 + `origin` 配置 + 源码归档；远程仓库创建与推送需要
-GitHub 账号授权。`scripts/publish_github.py` 有两条通道：标准 `git push`，以及当
-`github.com` 不可达时自动切换到 `api.github.com` 的 Git Data API（重放完整提交历史与作者信息）。
-详细步骤与当前状态见 [PUBLISH.md](PUBLISH.md)。
-
-```bash
-python scripts/publish_github.py --dry-run                 # 不联网、不需要 Token，先列发布计划
-export GITHUB_TOKEN=ghp_xxx
-python scripts/publish_github.py --repo opencrawler-lab    # --mode auto 自动选通道
-```
-
----
-
 ## 测试
 
 ```bash

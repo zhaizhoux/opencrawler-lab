@@ -1,0 +1,102 @@
+# OpenCrawlerLab 完整配置示例（YAML）
+# 运行： python -m opencrawler crawl -c examples/config.full.yaml
+# 注意：请把 user_agent 改成能联系到你的标识，并只抓允许抓取的公开页面。
+
+seeds:
+  - https://example.com/
+
+allowed_domains:
+  - example.com
+include_subdomains: true
+follow_external: false
+max_depth: 4
+max_pages: 2000
+
+# URL 过滤（正则）
+allow_url_patterns: []
+deny_url_patterns:
+  - "/(admin|wp-admin|login|logout|signin|signup|auth|account|cart|checkout|private|internal)(/|$)"
+  - "[?&](token|api[_-]?key|password|secret)="
+
+# 合规：默认值已经是最保守的一档
+respect_robots: true
+robots_cache_ttl: 3600
+robots_on_error: deny
+obey_crawl_delay: true
+user_agent: "OpenCrawlerLab/0.1 (+https://example.com/bot; bot@example.com)"
+default_delay_ms: 1000
+per_domain_delay_ms:
+  example.com: 1500
+per_domain_rps: 1.0
+respect_nofollow: true
+follow_sitemaps: true
+follow_feeds: false
+
+# 并发与稳定性
+concurrency: 16
+per_domain_concurrency: 2
+request_timeout: 20.0
+connect_timeout: 5.0
+retries: 2
+backoff_base: 0.8
+max_content_length: 5000000
+time_budget_seconds: 0
+conditional_requests: true
+allowed_content_types:
+  - text/html
+  - application/xhtml+xml
+  - application/json
+  - application/xml
+  - application/rss+xml
+  - text/plain
+
+# 抽取：auto | rules | both | raw
+extract_mode: both
+text_min_length: 0
+rules:
+  - name: article
+    url_pattern: "/(article|news|post)/"
+    fields:
+      title:
+        selector: "h1"
+        transform: strip
+      author:
+        selector: ".byline .name"
+      date:
+        selector: "time.published"
+        attr: datetime
+      tags:
+        selector: ".tag"
+        many: true
+        limit: 10
+      h1_xpath:
+        xpath: "//h1/text()"
+      price:
+        regex: "¥\\s*([0-9.]+)"
+        transform: float
+      total:
+        json_path: "data.total"
+        transform: int
+  - name: listing
+    url_pattern: "/list/"
+    fields:
+      names:
+        selector: ".item .title"
+        many: true
+
+# 插件扩展点： "模块:函数" 或 "路径.py:函数"
+# parsers:
+#   - "examples.custom_plugin:parse_private_api"
+# pipelines:
+#   - "examples.custom_plugin:add_language"
+# middlewares:
+#   - "examples.custom_plugin:skip_large_lists"
+
+# 输出
+storage: jsonl
+output_dir: "./output"
+dedupe_content: true
+save_raw: false
+log_level: INFO
+metrics_interval: 15.0
+checkpoint_interval: 10.0

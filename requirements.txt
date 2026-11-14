@@ -1,0 +1,12 @@
+# 最小运行依赖
+aiohttp>=3.9
+beautifulsoup4>=4.12
+
+# 增强解析与配置格式（可选）
+lxml>=5.0
+PyYAML>=6.0
+tomli>=2.0; python_version < "3.11"
+
+# 开发/测试
+pytest>=8.0
+ruff>=0.5

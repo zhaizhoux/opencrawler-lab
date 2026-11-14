@@ -1,0 +1,39 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.10", "3.11", "3.12", "3.13"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: pip
+      - name: Install
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[full,dev]"
+      - name: Lint
+        run: ruff check src tests scripts
+      - name: Unit & integration tests
+        run: python -m pytest tests -q
+      - name: End-to-end selftest
+        run: python -m opencrawler selftest
+      - name: Validate example configs
+        run: |
+          python -m opencrawler validate -c examples/config.minimal.json
+          python -m opencrawler validate -c examples/config.full.yaml

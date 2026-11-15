@@ -1,54 +1,99 @@
 # 发布到 GitHub
 
-本地仓库已经 `git init`、完成首次提交、配置好 `origin`，并把 `.gitignore`、
-MIT 许可、CI、Issue 模板等开源配套全部准备妥当。**剩下的唯一一步是身份授权**：
-创建远程仓库与推送需要 GitHub 账号凭证，自动化脚本不能替你登录。
+## 当前状态：已发布 ✅
 
-## 方式一：Token + 一键脚本（推荐）
+| 项目 | 结果 |
+| --- | --- |
+| 仓库 | **https://github.com/zhaizhoux/opencrawler-lab**（Public） |
+| 默认分支 | `main` |
+| 提交历史 | 6 个（1 个初始化 + 5 个本地提交完整重放，保留作者与日期） |
+| 文件 | 44 个，与本地 `HEAD` 完全一致 |
+| 校验 | `GET /git/trees/main?recursive=1` 回读 44 个文件；关键文件齐全；无凭证或抓取数据泄露 |
+| Actions | https://github.com/zhaizhoux/opencrawler-lab/actions |
 
-1. 在 GitHub → Settings → Developer settings → Personal access tokens 生成一个
-   具备 `repo` 权限的 Token。
-2. 设置环境变量并运行：
+源码归档 `opencrawler-lab.zip`（仓库上一级目录）由 `git archive` 生成，不含 `.git`，
+可随时用于手动导入。
+
+---
+
+## 凭证怎么设置
+
+Token 属于账号凭证，**绝不写入仓库**。脚本按以下优先级读取（只描述来源，不回显值）：
+
+1. `--token-file <path>`
+2. 环境变量 `GITHUB_TOKEN` / `GH_TOKEN` / `GITHUB_PAT` / `GH_PAT`
+3. 用户配置 `~/.config/opencrawler-lab/token`（推荐，仓库之外，权限设为 0600）
+4. 项目根目录 `.env` 中的 `GITHUB_TOKEN=...`（已由 `.gitignore` 排除）
+5. `--value`（会留在 shell 历史，不推荐）
+6. `--use-git-credential`（由 Git 凭据管理器提供；若弹出授权窗口，需账号本人在桌面确认）
 
 ```bash
-# Git Bash / Linux / macOS
-export GITHUB_TOKEN=ghp_xxx
-python scripts/publish_github.py --repo opencrawler-lab
+# 写入 token 文件（Git Bash）
+mkdir -p ~/.config/opencrawler-lab
+printf '%s\n' 'ghp_xxx' > ~/.config/opencrawler-lab/token
+chmod 600 ~/.config/opencrawler-lab/token
 
-# PowerShell
-$env:GITHUB_TOKEN = "ghp_xxx"
-python scripts/publish_github.py --repo opencrawler-lab
+# 或临时用环境变量
+export GITHUB_TOKEN=ghp_xxx
 ```
 
-脚本会：验证身份 → 创建公开仓库（已存在则复用）→ 选择推送通道 → 推送 `main` →
-回读远程树校验文件数。Token 只通过临时的 `http.extraheader` 或 API 请求头传递，
-**不会写入 `.git/config`，也不会落盘**。
+### 需要什么权限
+
+| Token 类型 | 前缀 | 能否建仓 | 权限要求 |
+| --- | --- | --- | --- |
+| classic PAT（推荐） | `ghp_` | 可以 | 勾选 `repo`（要跑 CI 再勾 `workflow`） |
+| OAuth App token | `gho_` | 可以 | scopes 含 `repo` |
+| fine-grained PAT | `github_pat_` | **通常不行** | `Contents: read/write` + `Metadata: read`；建仓还需 `Administration: read/write` 且 Repository access 为 All repositories |
+
+先检查再发布：
+
+```bash
+python scripts/publish_github.py --check-token
+```
+
+## 发布命令速查
+
+```bash
+python scripts/publish_github.py --dry-run        # 不联网，列提交数/文件数/通道/凭证状态
+python scripts/publish_github.py                  # 自动建仓 + 推送（auto 选通道）
+python scripts/publish_github.py --mode api       # 强制 Git Data API 通道
+python scripts/publish_github.py --skip-create    # 仓库已存在，跳过建仓直接推送
+python scripts/publish_github.py --no-commit      # 不自动 git add/commit
+```
+
+脚本流程：验证身份与权限 → 创建公开仓库（已存在则复用）→ 选择通道 → 推送 →
+回读远程树校验文件数。Token 只放在请求头里，不写进 `.git/config`。
 
 ### 两条推送通道
 
 | 通道 | 依赖 | 说明 |
 | --- | --- | --- |
-| `git` | `github.com` 可达 | 标准 `git push -u origin main` |
-| `api` | `api.github.com` 可达 | 用 Git Data API 逐个重放本地提交（blob → tree → commit → ref），保留完整提交历史、作者与日期；远程仓库非空时追加一个等价提交 |
+| `git` | `github.com` 可达 | `git push -u origin main`，用 Basic 认证（`x-access-token`） |
+| `api` | `api.github.com` 可达 | Git Data API 重放 blob → tree → commit → ref，保留完整历史、作者与日期 |
 
-默认 `--mode auto`：先探测 `github.com`，被代理/防火墙阻断就自动切到 `api`。
-可显式指定 `--mode git` / `--mode api`。`--dry-run` 不联网、不需要 Token，
-会列出将发布的提交数、文件数以及当前网络下会选哪条通道。
+`--mode auto` 先探测 `github.com`，不可达就切 `api`；`git` 通道失败也会自动切 `api`。
+`GITHUB_API_URL` 可覆盖 API 基址（用于本地演练或 GitHub Enterprise）。
 
-```bash
-python scripts/publish_github.py --dry-run
-python scripts/publish_github.py --repo opencrawler-lab --mode api
-```
+### 其他方式
 
-## 方式二：使用 GitHub 连接器
+- **GitHub 连接器**：在 WorkBuddy 连接器管理里启用 GitHub 并授权，让助手直接推送。
+- **手动导入**：把 `opencrawler-lab.zip` 上传到 GitHub 新建的仓库，无需命令行。
 
-在 WorkBuddy 的连接器管理里启用 GitHub 并完成授权，然后让助手把当前仓库推送到
-你自己的账号下（脚本会自动换成你的 `login`）。
+---
 
-## 方式三：手动导入（无需命令行）
+## 排障记录（本次发布真实遇到并已修复）
 
-仓库根目录旁已生成 `opencrawler-lab.zip`（由 `git archive` 导出的纯净源码，
-不含 `.git`、缓存与抓取数据）。在 GitHub 新建仓库后上传/导入该压缩包即可。
+1. **`github.com` 被代理阻断**：`CONNECT tunnel failed, 502`，直连超时，而
+   `api.github.com` 正常。→ 新增 API 通道，用 Git Data API 重放提交历史，绕开该域名。
+2. **fine-grained PAT 建仓 403**：`Resource not accessible by personal access token`。
+   它对已有仓库有 `push/admin`，但无权调用 `POST /user/repos`。→ 改用 classic PAT，
+   或手动在 https://github.com/new 建空仓库后用 `--skip-create` 推送；脚本在 403 时
+   会输出这两条具体解法。
+3. **空仓库 Git Data API 全部 409**：`Git Repository is empty`，连 `POST /git/trees`
+   带内联 content 也一样。→ 先用 Contents API `PUT /contents/README.md` 建立初始提交，
+   再线性重放全部本地提交并快进 `main` 引用。
+4. **`git push` 报 `invalid credentials`**：`AUTHORIZATION: bearer <token>` 不被 GitHub
+   git smart-http 接受。→ 改为 Basic：`base64("x-access-token:<token>")`。
 
 ## 推送前自检清单
 
@@ -57,21 +102,11 @@ python scripts/publish_github.py --repo opencrawler-lab --mode api
 - [ ] `ruff check src tests scripts examples` 无错误
 - [ ] `user_agent` 已改成能联系到你的标识
 - [ ] 仓库中没有 `output/`、`*.sqlite3`、`*.jsonl` 或任何真实抓取数据
+- [ ] 仓库中没有 `.env`、`*.token` 或任何 Token 明文
 - [ ] 已阅读 [ETHICS.md](ETHICS.md)
 
-## 当前状态（2026-11-15 复核）
+## 安全提醒
 
-- **凭证**：无 `GITHUB_TOKEN` / `GH_TOKEN` 环境变量，无 GitHub CLI，无 `~/.git-credentials`；
-  Git 凭据管理器中确实存有 `github.com` 的用户名与密码（用户名 `zhaizhoux`），
-  但它只能被 `git push` 使用，无法用于 API 通道。会话中的 GitHub 连接器授权尚未完成。
-- **网络**：`api.github.com` 直连与代理均返回 200；`github.com` 走代理返回
-  `CONNECT tunnel failed, response 502`、直连超时，标准 `git push` 因此失败
-  （`fatal: unable to access ...: CONNECT tunnel failed, response 502`）。
-  无 SSH 密钥，`ssh.github.com:443` 亦不可达。
-- **已就绪**：发布脚本 v2 支持 `--mode api`，可在只有 `api.github.com` 可达的环境下
-  通过 Git Data API 重放本地 2 个提交 / 44 个文件，并回读校验。`--dry-run` 已通过，
-  `ruff check` 通过。
-- **还差一步**：完成一次身份授权（连接器点选授权，或设置一个具备 `repo` 权限的
-  `GITHUB_TOKEN`）。授权到位后运行一条命令即可完成发布，不需要改动仓库内容。
-
-在此之前**没有创建任何远程仓库，也没有伪造发布结果**。
+Token 一旦在聊天、终端历史或日志里以明文出现过，就应视为已泄露：
+发布完成后请到 GitHub → Settings → Developer settings → Personal access tokens
+**立即吊销并重新生成**，本地 `~/.config/opencrawler-lab/token` 同步删除或替换。

@@ -188,18 +188,24 @@ python scripts/benchmark.py            # 内存生成 400 个页面，测 4/16/6
 
 ---
 
-## 发布到 GitHub
+## 已开源到 GitHub
 
-本地已完成 `git init` + 2 次提交 + `origin` 配置 + 源码归档；远程仓库创建与推送需要
-GitHub 账号授权。`scripts/publish_github.py` 有两条通道：标准 `git push`，以及当
-`github.com` 不可达时自动切换到 `api.github.com` 的 Git Data API（重放完整提交历史与作者信息）。
-详细步骤与当前状态见 [PUBLISH.md](PUBLISH.md)。
+**https://github.com/zhaizhoux/opencrawler-lab** —— 公开仓库，`main` 分支，44 个文件，
+完整提交历史与作者信息。欢迎 Star / Issue / PR。
+
+`scripts/publish_github.py` 是配套的一键发布脚本，支持两条通道：标准 `git push`，以及
+`github.com` 不可达时自动切换的 `api.github.com` Git Data API（重放完整提交历史）。
+它还处理了空仓库初始化、fine-grained PAT 无权建仓等边界情况。
 
 ```bash
-python scripts/publish_github.py --dry-run                 # 不联网、不需要 Token，先列发布计划
-export GITHUB_TOKEN=ghp_xxx
-python scripts/publish_github.py --repo opencrawler-lab    # --mode auto 自动选通道
+python scripts/publish_github.py --dry-run       # 不联网、不需要 Token，先列发布计划
+python scripts/publish_github.py --check-token   # 验证 Token 身份与权限
+python scripts/publish_github.py --skip-create   # 仓库已存在时直接推送
 ```
+
+Token 放在仓库之外的 `~/.config/opencrawler-lab/token`（或环境变量 `GITHUB_TOKEN`），
+`.gitignore` 已排除 `.env` / `*.token`，凭证绝不入库。
+完整步骤与排障记录见 [PUBLISH.md](PUBLISH.md)。
 
 ---
 

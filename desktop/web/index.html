@@ -1,0 +1,101 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>OpenCrawlerLab · 桌面控制台</title>
+<link rel="stylesheet" href="/app.css">
+</head>
+<body>
+<div class="app">
+  <header class="topbar">
+    <div class="brand">
+      <div class="logo">OC</div>
+      <div>
+        <h1>OpenCrawlerLab</h1>
+        <p id="versionLine">桌面控制台 · 通用合规爬虫</p>
+      </div>
+    </div>
+    <div class="top-actions">
+      <span class="badge" id="statusBadge"><i></i> 空闲</span>
+      <button class="btn ghost" id="exportBtn" title="导出 JSONL 结果">导出结果</button>
+      <button class="btn primary" id="startBtn">开始抓取</button>
+      <button class="btn danger" id="stopBtn" disabled>优雅停止</button>
+    </div>
+  </header>
+
+  <main class="grid">
+    <section class="panel config">
+      <div class="panel-head"><h2>抓取配置</h2><span class="hint">仅抓取公开且允许抓取的页面</span></div>
+      <label>起始 URL <small>每行一个</small>
+        <textarea id="seeds" rows="4" spellcheck="false" placeholder="https://example.com/"></textarea>
+      </label>
+      <div class="row">
+        <label>全局并发 <input id="concurrency" type="number" min="1" max="1024"></label>
+        <label>每域并发 <input id="per_domain_concurrency" type="number" min="1" max="128"></label>
+      </div>
+      <div class="row">
+        <label>请求间隔 ms <input id="default_delay_ms" type="number" min="0"></label>
+        <label>每域 RPS <input id="per_domain_rps" type="number" min="0" step="0.1"></label>
+      </div>
+      <div class="row">
+        <label>最大页数 <input id="max_pages" type="number" min="1"></label>
+        <label>最大深度 <input id="max_depth" type="number" min="0"></label>
+      </div>
+      <div class="row">
+        <label>时间预算 s <small>0 = 不限</small><input id="time_budget_seconds" type="number" min="0"></label>
+        <label>存储后端
+          <select id="storage"><option value="jsonl">JSONL</option><option value="sqlite">SQLite</option><option value="none">不保存</option></select>
+        </label>
+      </div>
+      <label>输出目录 <input id="output_dir" type="text" spellcheck="false"></label>
+      <label>抽取模式
+        <select id="extract_mode"><option value="auto">自动</option><option value="rules">仅规则</option><option value="both">自动 + 规则</option><option value="raw">原始正文</option></select>
+      </label>
+      <div class="switches">
+        <label class="switch"><input type="checkbox" id="respect_robots"><span>遵守 robots.txt</span></label>
+        <label class="switch"><input type="checkbox" id="obey_crawl_delay"><span>遵守 Crawl-delay</span></label>
+        <label class="switch"><input type="checkbox" id="adaptive_concurrency"><span>自适应并发</span></label>
+        <label class="switch"><input type="checkbox" id="dedupe_content"><span>内容去重</span></label>
+        <label class="switch"><input type="checkbox" id="follow_sitemaps"><span>发现 Sitemap</span></label>
+      </div>
+      <div class="config-actions">
+        <button class="btn ghost small" id="validateBtn">校验配置</button>
+        <button class="btn ghost small" id="resetBtn">恢复默认</button>
+      </div>
+      <p class="note" id="configNote"></p>
+    </section>
+
+    <section class="right">
+      <div class="metrics" id="metrics">
+        <div class="metric"><span>请求总数</span><b data-k="requests">0</b></div>
+        <div class="metric"><span>成功</span><b data-k="succeeded">0</b></div>
+        <div class="metric"><span>条目</span><b data-k="items">0</b></div>
+        <div class="metric"><span>吞吐 req/s</span><b data-k="rps">0.00</b></div>
+        <div class="metric"><span>队列中</span><b data-k="queued">0</b></div>
+        <div class="metric"><span>并发上限</span><b data-k="concurrency">—</b></div>
+      </div>
+
+      <div class="panel grow">
+        <div class="panel-head"><h2>抓取结果</h2><span class="hint" id="resultCount">最近 0 条</span></div>
+        <div class="table-wrap"><table>
+          <thead><tr><th>URL</th><th>标题</th><th>状态</th><th>时间</th></tr></thead>
+          <tbody id="resultBody"><tr><td colspan="4" class="empty">暂无结果，配置好后点击「开始抓取」</td></tr></tbody>
+        </table></div>
+      </div>
+
+      <div class="panel log-panel">
+        <div class="panel-head"><h2>实时日志</h2><span class="hint">SSE 推送 · 最近 200 条</span></div>
+        <div class="logs" id="logs"></div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="footer">
+    <span>只用于学习 · 请遵守目标站点 robots.txt 与服务条款</span>
+    <span id="footerStatus">服务连接中…</span>
+  </footer>
+</div>
+<script src="/app.js"></script>
+</body>
+</html>

@@ -60,6 +60,11 @@ def build_parser() -> argparse.ArgumentParser:
     demo.add_argument("--host", default="127.0.0.1")
     demo.add_argument("--port", type=int, default=8765)
 
+    desktop = sub.add_parser("desktop", help="启动桌面应用（本地服务 + 独立窗口）")
+    desktop.add_argument("--host", default="127.0.0.1")
+    desktop.add_argument("--port", type=int, default=8756)
+    desktop.add_argument("--no-browser", action="store_true", help="只启动服务，不打开窗口")
+
     sub.add_parser("selftest", help="在内存中启动演示站点并完整自测一次抓取")
     sub.add_parser("version", help="打印版本号")
 
@@ -239,6 +244,10 @@ def main(argv: list[str] | None = None) -> int:
         if command == "demo":
             from .demo import serve
             return asyncio.run(serve(args.host, args.port))
+        if command == "desktop":
+            from .server import launch
+            configure_logging("INFO")
+            return asyncio.run(launch(args.host, args.port, browser=not args.no_browser))
         if command == "selftest":
             return asyncio.run(_selftest())
         if command == "validate":

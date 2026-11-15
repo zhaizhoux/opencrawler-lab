@@ -195,8 +195,9 @@ def git(*args: str, check: bool = True, binary: bool = False) -> subprocess.Comp
 
 
 def local_commits() -> list[str]:
-    """按时间正序返回当前 HEAD 的全部提交。"""
-    return git("log", "--reverse", "--format=%H", "HEAD").stdout.split()
+    """按时间正序返回当前 HEAD 的全部提交；未初始化仓库返回空列表。"""
+    result = git("log", "--reverse", "--format=%H", "HEAD", check=False)
+    return result.stdout.split() if result.returncode == 0 else []
 
 
 def tree_entries(commit: str) -> list[tuple[str, str, str]]:
@@ -351,8 +352,10 @@ def push_via_api(token: str, owner: str, repo: str) -> int:
 
 # ---------------------------------------------------------------- 主流程
 def main(argv: list[str] | None = None) -> int:
+    global ROOT
     parser = argparse.ArgumentParser(description="创建 GitHub 公开仓库并推送本项目的 main 分支")
     parser.add_argument("--repo", default="opencrawler-lab", help="仓库名")
+    parser.add_argument("--root", help="要发布的本地仓库根目录；默认脚本所在项目（支持三仓库复用）")
     parser.add_argument("--description", default=REPO_DESC)
     parser.add_argument("--mode", choices=("auto", "git", "api"), default="auto",
                         help="推送通道；auto 会在 github.com 不可达时切到 API")
@@ -366,6 +369,12 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--use-git-credential", action="store_true",
                         help="从 Git 凭据管理器读取凭证，桌面弹窗由本人确认")
     args = parser.parse_args(argv)
+    if args.root:
+        ROOT = Path(args.root).expanduser().resolve()
+        if not ROOT.is_dir():
+            print(f"本地仓库目录不存在: {ROOT}", file=sys.stderr)
+            return 2
+    print(f"发布目标: {ROOT} → {args.repo}")
 
     token, source = resolve_token(args)
     if args.check_token:

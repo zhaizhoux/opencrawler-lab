@@ -7,6 +7,7 @@ import signal
 import time
 from pathlib import Path
 
+from .adaptive import AdaptiveConcurrency
 from .config import Config
 from .extractor import Extractor
 from .fetcher import Fetcher
@@ -37,6 +38,16 @@ class Crawler:
         self._stop: asyncio.Event | None = None
         self._stop_reason = ""
         self._started = 0.0
+        self._running = False
+        self._pending_stop = False
+        self.adaptive = (
+            AdaptiveConcurrency(
+                config.concurrency,
+                target_latency_ms=config.adaptive_target_latency_ms,
+            )
+            if config.adaptive_concurrency
+            else None
+        )
 
     # ---------------- 主循环 ----------------
     async def run(self) -> dict:
@@ -47,6 +58,10 @@ class Crawler:
         Path(self.cfg.output_dir).mkdir(parents=True, exist_ok=True)
         self._started = time.monotonic()
         self._stop = asyncio.Event()
+        self._running = True
+        if self._pending_stop:
+            self._stop.set()
+            self._pending_stop = False
         self.metrics = Metrics()
 
         self.frontier = Frontier(self.cfg.state_file, resume=True)
@@ -84,7 +99,8 @@ class Crawler:
                 while not self._stop.is_set():
                     if self._budget_reached():
                         break
-                    available = self.cfg.concurrency - len(self._tasks)
+                    limit = self.adaptive.limit if self.adaptive else self.cfg.concurrency
+                    available = max(0, limit - len(self._tasks))
                     if available > 0:
                         batch = self.frontier.pop_batch(
                             available,
@@ -123,7 +139,28 @@ class Crawler:
         summary["state_file"] = self.cfg.state_file
         summary["output_dir"] = self.cfg.output_dir
         self.frontier.close()
+        self._running = False
         return summary
+
+    # ---------------- 桌面 / 外部控制 ----------------
+    def request_stop(self, reason: str = "外部请求停止") -> None:
+        """线程安全地请求优雅停机；未开始运行时会在启动后立即生效。"""
+        self._stop_reason = reason
+        if self._stop and not self._stop.is_set():
+            self._stop.set()
+        else:
+            self._pending_stop = True
+
+    def snapshot(self) -> dict:
+        """返回当前运行快照，供桌面 UI 轮询。"""
+        counts = self.frontier.counts() if self.frontier else {}
+        snap = self.metrics.snapshot(counts=counts, inflight=len(self._tasks))
+        snap.update({
+            "running": self._running,
+            "stop_reason": self._stop_reason,
+            "adaptive": self.adaptive.snapshot() if self.adaptive else {"enabled": False},
+        })
+        return snap
 
     def _dry_run(self) -> dict:
         self.log.info("DRY-RUN（不会发出任何网络请求）")
@@ -188,6 +225,11 @@ class Crawler:
             delay_ms = (await self.robots.crawl_delay(request.url)) * 1000.0
             async with self.limiter.slot(host, delay_ms):
                 outcome = await self.fetcher.fetch(request)
+
+            if self.adaptive:
+                latency = (outcome.response.elapsed_ms if outcome.response
+                           else self.cfg.request_timeout * 1000.0)
+                self.adaptive.record(latency, not outcome.error)
 
             if outcome.error:
                 self.metrics.failed += 1

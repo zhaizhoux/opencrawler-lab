@@ -2,6 +2,28 @@
 
 本项目遵循 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/) 与语义化版本。
 
+## [0.2.0] - 2026-11-15
+
+面向"更强大、更简洁"的一次重构式增强，向后兼容 0.1.x 的配置与 CLI。
+
+### 新增
+- **极简高层 API**：`crawl(url, max_pages=20)` 一行抓取；`Session` 复用配置、`plan()` 只看计划、
+  `crawl_async()` 供现有事件循环调用。全部通过延迟导入暴露在包顶层。
+- **AIMD 自适应并发**：按滑动窗口的成功率与 p95 延迟乘性收敛 / 加性试探并发上限；
+  只调整全局上限，不干预每域名礼貌限速。可通过 `adaptive_concurrency=false` 关闭。
+- **桌面应用**：`opencrawler desktop` 启动本地 REST + SSE 服务，用 Edge/Chrome `--app`
+  打开无地址栏独立窗口；可视化配置、启停、指标、日志流与结果表格。零 GUI 依赖。
+- **exe 一键启动**：`desktop/OpenCrawlerLauncher.exe`（Win32 启动器，33 KB）与
+  `desktop/build_exe.py`（PyInstaller 单文件约 17 MiB，目标机器无需 Python）。
+- 引擎新增 `request_stop()` / `snapshot()`，支持外部优雅停机与实时状态查询。
+- 三语言共用的桌面接口契约 [docs/DESKTOP_API.md](docs/DESKTOP_API.md)。
+- 新增 16 项测试：自适应并发、高层 API、桌面 REST/SSE 端到端；共 39 项。
+
+### 改进
+- 桌面服务只监听 `127.0.0.1`，静态资源白名单、结果路径固定，避免路径穿越。
+- 日志处理器异常隔离，SSE 断连自动清理；`dry-run` 可从桌面直接演练。
+- README / PUBLISH.md / desktop/README.md 同步更新。
+
 ## [0.1.0] - 2026-11-14
 
 首个公开版本，定位为教学用通用爬虫框架。

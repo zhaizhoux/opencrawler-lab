@@ -4,7 +4,7 @@
 > 面向"各种网站"的自适应抽取：HTML / JSON API / XML(Sitemap、RSS) / 纯文本，
 > 一套配置即可适配，不需要为每个站点重写爬虫。
 
-[![CI](https://github.com/OpenCrawlerLab/opencrawler-lab/actions/workflows/ci.yml/badge.svg)](https://github.com/OpenCrawlerLab/opencrawler-lab/actions/workflows/ci.yml)
+[![CI](https://github.com/zhaizhoux/opencrawler-lab/actions/workflows/ci.yml/badge.svg)](https://github.com/zhaizhoux/opencrawler-lab/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 ![Python](https://img.shields.io/badge/python-3.10%2B-blue)
 
@@ -61,6 +61,10 @@ python -m opencrawler fetch https://example.com/
 python -m opencrawler init -o crawler.config.json
 python -m opencrawler crawl -c crawler.config.json --dry-run     # 先看计划，不发请求
 python -m opencrawler crawl -c crawler.config.json
+
+# 6. 或者直接打开桌面控制台（自动开一个独立窗口）
+python -m opencrawler desktop
+# Windows 也可以双击 desktop/OpenCrawlerLauncher.exe
 ```
 
 输出在 `output/`：`items.jsonl`（每行一条结构化记录）、`metrics.jsonl`（周期性指标）、
@@ -185,6 +189,54 @@ python scripts/benchmark.py            # 内存生成 400 个页面，测 4/16/6
 ```
 
 压测只打本机内存站点，不会对公网造成任何压力。
+
+---
+
+## 极简 API（0.2.0 新增）
+
+需要写脚本时，不用碰 `Config` 和事件循环：
+
+```python
+from opencrawler import crawl, plan, Session, crawl_async
+
+plan("https://example.com/", max_pages=20)          # 只看计划，零网络请求
+report = crawl("https://example.com/", max_pages=20)  # 一行抓取，返回指标摘要
+
+with Session(concurrency=64, output_dir="./out") as s:
+    s.run(["https://a.example/", "https://b.example/"])   # 配置复用
+    report = s.run(["https://c.example/"], max_pages=10)  # 单次覆盖参数
+
+# 在已有的 async 应用里
+report = await crawl_async("https://example.com/", storage="jsonl")
+```
+
+精细控制仍用原来的 `Config` + `Crawler`；`crawler.request_stop()` 支持外部优雅停机，
+`crawler.snapshot()` 返回实时指标。
+
+## 桌面应用与 exe 一键启动（0.2.0 新增）
+
+`python -m opencrawler desktop` 会在 `127.0.0.1:8756` 起一个本地服务，并用
+Edge / Chrome 的 `--app` 模式打开**无地址栏的独立桌面窗口**：可视化编辑配置、启停任务、
+实时看 6 个指标与日志流、浏览与导出抓取结果。不依赖 tkinter / Qt / Electron。
+
+Windows 上双击 `desktop/OpenCrawlerLauncher.exe`（33 KB Win32 启动器）即可一键运行；
+执行 `python desktop/build_exe.py` 可生成完全独立的 `dist/OpenCrawlerLab.exe`（约 17 MiB，
+目标机器无需 Python）。详见 [desktop/README.md](desktop/README.md)。
+
+前端只依赖 [docs/DESKTOP_API.md](docs/DESKTOP_API.md) 定义的 REST + SSE 契约，
+**Java 版与 C++ 版复用同一套前端**，三种实现的桌面体验一致：
+
+| 仓库 | 语言 | 并发模型 |
+| --- | --- | --- |
+| [opencrawler-lab](https://github.com/zhaizhoux/opencrawler-lab) | Python 3.10+ | `asyncio` + aiohttp |
+| [opencrawler-java](https://github.com/zhaizhoux/opencrawler-java) | Java 21 | 虚拟线程（Loom） |
+| [opencrawler-cpp](https://github.com/zhaizhoux/opencrawler-cpp) | C++20 | 线程池 + WinHTTP/cURL |
+
+## 自适应并发（0.2.0 新增）
+
+固定并发数在真实站点上常常不是最优。`adaptive_concurrency`（默认开）用一个滑动窗口的
+成功率与 p95 延迟做 AIMD：错误率或延迟越界时并发乘性降到 80%，健康时按 1/8 缓慢加性增加，
+上下限由配置约束。它**只调整全局上限**，每域名限速与 robots 规则始终独立生效。
 
 ---
 

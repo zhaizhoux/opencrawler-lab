@@ -47,6 +47,8 @@ DEFAULTS: dict[str, Any] = {
     "per_domain_rps": 2.0,
     # ---- 并发与稳定性 ----
     "concurrency": 32,
+    "adaptive_concurrency": True,     # 按成功率与 p95 延迟自动收敛/试探并发
+    "adaptive_target_latency_ms": 1200,
     "per_domain_concurrency": 4,
     "request_timeout": 20.0,
     "connect_timeout": 5.0,
@@ -116,6 +118,8 @@ class Config:
     per_domain_rps: float = 2.0
 
     concurrency: int = 32
+    adaptive_concurrency: bool = True
+    adaptive_target_latency_ms: int = 1200
     per_domain_concurrency: int = 4
     request_timeout: float = 20.0
     connect_timeout: float = 5.0

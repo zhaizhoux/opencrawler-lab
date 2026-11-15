@@ -25,3 +25,9 @@ crawler.config.json
 .vscode/
 .DS_Store
 Thumbs.db
+
+# 发布凭证：绝不入库（Token 请放在仓库外的 ~/.config/opencrawler-lab/token）
+.env
+.env.*
+*.token
+token

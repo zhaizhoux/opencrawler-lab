@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "opencrawler-lab"
-version = "0.2.0"
+version = "0.3.0"
 description = "通用、合规、异步高并发的网站爬虫学习框架（robots.txt / 限速 / 断点续爬 / 站点自适应抽取）"
 readme = "README.md"
 requires-python = ">=3.10"

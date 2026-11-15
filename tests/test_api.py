@@ -6,7 +6,7 @@ from opencrawler.config import ConfigError
 
 
 def test_version_bumped():
-    assert __version__ == "0.2.0"
+    assert __version__ == "0.3.0"
 
 
 def test_plan_does_not_touch_network():

@@ -246,7 +246,7 @@ Windows 上双击 `desktop/OpenCrawlerLauncher.exe`（33 KB Win32 启动器）�
 
 | 仓库 | 状态 | 文件数 |
 | --- | --- | --- |
-| https://github.com/zhaizhoux/opencrawler-lab | Public · `main` · CI 通过 | 59 |
+| https://github.com/zhaizhoux/opencrawler-lab | Public · `main` · CI 通过 | 60 |
 | https://github.com/zhaizhoux/opencrawler-java | Public · `main` · CI 通过 | 34 |
 | https://github.com/zhaizhoux/opencrawler-cpp | Public · `main` · CI 通过 | 27 |
 
@@ -320,3 +320,26 @@ scripts/         压测与一键发布脚本
 MIT 许可，详见 [LICENSE](LICENSE)。
 
 **再次提醒：这是学习项目，请做一个有礼貌的爬虫作者。**
+
+---
+
+## 桌面控制台 v0.3（本次完善）
+
+三语言共用同一套前端（`desktop/web/` 三文件字节级一致），契约见
+[docs/DESKTOP_API.md](docs/DESKTOP_API.md)。版本号统一提升到 `0.3.0`。
+
+**页面**：12 个实时指标卡 + 60 秒吞吐趋势折线；结果表支持搜索、类型筛选、
+HTTP 状态、耗时、点击展开完整 JSON 详情与 CSV 导出；日志支持级别/关键字过滤、
+暂停缓冲、清空、自动滚动开关；配置支持多份本地预设（保存 / 载入 / 删除 /
+导入 / 导出）、服务端保存、校验、恢复默认；深色 / 浅色主题持久化；
+SSE 连接状态徽标与 3 秒轮询兜底；快捷键 `Ctrl+Enter` 启动、`Ctrl+.` 停止、
+`/` 聚焦搜索、`Esc` 关闭详情。
+
+**接口**：新增 `/api/info`（标识 Python / Java / C++ 实现、版本、平台、合规默认值）；
+`status` 补齐全部指标与 `implementation` / `uptime_seconds`；
+`/api/results` 支持 `q` / `kind` / `offset` 并返回 `total`；
+`/api/validate` 三语言统一为 400 + `{valid:false,error}`。
+
+**修复**：Java 静态资源曾漏设 `Content-Type`（中文易乱码）且文件缺失仍返回 200；
+C++ `/api/validate` 曾返回 500；前端结果被清空时表格仍显示旧数据、
+SSE 断线会误标运行状态徽标。

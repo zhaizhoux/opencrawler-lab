@@ -8,8 +8,11 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
+import platform
 import sys
+import time
 from collections import deque
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
@@ -21,6 +24,18 @@ from .engine import Crawler
 
 WEB_DIR = Path(getattr(sys, "_MEIPASS", Path(__file__).resolve().parents[2])) / "desktop" / "web"
 MAX_LOG_LINES = 400
+RESULT_SCAN_LIMIT = 20_000       # 结果扫描窗口上限，避免超大 JSONL 撑爆内存
+SERVER_STARTED = time.time()
+IMPLEMENTATION = "python"
+COMPLIANCE_DEFAULTS = [
+    "遵守 robots.txt", "遵守 Crawl-delay", "默认限速",
+    "限深限页", "不跟随外链", "不绕过登录/验证码",
+]
+ENDPOINTS = [
+    "/api/info", "/api/status", "/api/config", "/api/validate",
+    "/api/start", "/api/stop", "/api/results", "/api/logs",
+    "/api/export", "/api/events",
+]
 MIME = {".html": "text/html", ".css": "text/css",
         ".js": "application/javascript", ".svg": "image/svg+xml",
         ".ico": "image/x-icon"}
@@ -74,8 +89,17 @@ class DesktopState:
             snap = {"running": False, "requests": 0, "succeeded": 0, "failed": 0,
                     "items": 0, "inflight": 0, "frontier": {},
                     "requests_per_second": 0, "adaptive": {"enabled": False}}
+        # 空闲态补齐所有指标字段，前端不必为三种实现分别写兜底分支。
+        for key in ("skipped", "duplicates", "links_discovered", "bytes",
+                    "not_modified", "elapsed_seconds", "requests_per_second"):
+            snap.setdefault(key, 0)
+        snap.setdefault("frontier", {})
+        snap.setdefault("adaptive", {"enabled": False})
         snap.update({
             "version": __version__,
+            "implementation": IMPLEMENTATION,
+            "platform": platform.system(),
+            "uptime_seconds": round(time.time() - SERVER_STARTED, 1),
             "running": self.running,
             "summary": self.summary,
             "error": self.error,
@@ -92,21 +116,47 @@ def _json(data: Any, status: int = 200) -> web.Response:
                         status=status, content_type="application/json")
 
 
-def _read_results(config: dict, limit: int) -> list[dict]:
+def _read_results(config: dict, limit: int, q: str = "", kind: str = "",
+                  offset: int = 0) -> dict:
+    """读取并筛选 JSONL 结果。
+
+    返回 ``{items, total, limit, offset}``；``total`` 是扫描窗口内匹配条数，
+    ``offset`` 从最新一条往历史方向偏移，便于前端做「加载更早」。
+    """
+    empty = {"items": [], "total": 0, "limit": limit, "offset": offset}
     out = Path(config.get("output_dir", "./output")) / "items.jsonl"
     if not out.is_file():
-        return []
+        return empty
     try:
-        lines = out.read_text(encoding="utf-8", errors="replace").splitlines()[-limit:]
+        with out.open(encoding="utf-8", errors="replace") as fh:
+            lines = deque(fh, maxlen=RESULT_SCAN_LIMIT)
     except OSError:
-        return []
+        return empty
+
+    needle, wanted = q.lower(), kind.lower()
     items = []
     for line in lines:
         try:
-            items.append(json.loads(line))
+            row = json.loads(line)
         except ValueError:
             continue
-    return items
+        if not isinstance(row, dict):
+            continue
+        data = row.get("data") if isinstance(row.get("data"), dict) else row
+        if wanted and str(row.get("kind") or data.get("kind") or "page").lower() != wanted:
+            continue
+        if needle:
+            haystack = f"{row.get('url') or data.get('url') or ''} " \
+                       f"{data.get('title') or data.get('name') or ''}".lower()
+            if needle not in haystack:
+                continue
+        items.append(row)
+
+    total = len(items)
+    end = max(0, total - offset)
+    start = max(0, end - limit)
+    return {"items": items[start:end], "total": total,
+            "limit": limit, "offset": offset}
 
 
 async def _static(name: str) -> web.StreamResponse:
@@ -128,6 +178,21 @@ def create_app(state: DesktopState | None = None) -> web.Application:
 
     async def asset(request: web.Request) -> web.StreamResponse:
         return await _static(request.match_info["name"])
+
+    async def info(_request: web.Request) -> web.Response:
+        """实现元信息：让共用前端知道自己连的是 Python / Java / C++ 哪一版。"""
+        return _json({
+            "implementation": IMPLEMENTATION,
+            "language": f"Python {platform.python_version()}",
+            "version": __version__,
+            "platform": f"{platform.system()} {platform.release()}",
+            "started_at": datetime.fromtimestamp(SERVER_STARTED, timezone.utc).isoformat(),
+            "uptime_seconds": round(time.time() - SERVER_STARTED, 1),
+            "endpoints": ENDPOINTS,
+            "compliance_defaults": COMPLIANCE_DEFAULTS,
+            "storage_backends": ["jsonl", "sqlite", "none"],
+            "result_scan_limit": RESULT_SCAN_LIMIT,
+        })
 
     async def status(_request: web.Request) -> web.Response:
         return _json(st.status())
@@ -153,7 +218,7 @@ def create_app(state: DesktopState | None = None) -> web.Application:
             cfg = Config.from_dict(await request.json())
             return _json({"valid": True, "warnings": cfg.warnings, "config": cfg.to_dict()})
         except (ConfigError, ValueError) as exc:
-            return _json({"valid": False, "error": str(exc)}, 400)
+            return _json({"valid": False, "error": str(exc)}, 400)  # 契约：三语言一致
 
     async def _runner(cfg: Config) -> None:
         crawler = Crawler(cfg)
@@ -196,8 +261,19 @@ def create_app(state: DesktopState | None = None) -> web.Application:
         return _json({"ok": True})
 
     async def results(request: web.Request) -> web.Response:
-        limit = max(1, min(1000, int(request.query.get("limit", 100))))
-        return _json({"items": _read_results(st.config, limit)})
+        def _int(name: str, default: int, low: int, high: int) -> int:
+            try:
+                return max(low, min(high, int(request.query.get(name, default))))
+            except (TypeError, ValueError):
+                return default
+        payload = _read_results(
+            st.config,
+            limit=_int("limit", 100, 1, 1000),
+            q=request.query.get("q", "").strip(),
+            kind=request.query.get("kind", "").strip(),
+            offset=_int("offset", 0, 0, 1_000_000),
+        )
+        return _json(payload)
 
     async def logs(request: web.Request) -> web.Response:
         seq = int(request.query.get("since", 0))
@@ -236,6 +312,7 @@ def create_app(state: DesktopState | None = None) -> web.Application:
     app = web.Application(client_max_size=2 * 1024 * 1024)
     app.router.add_get("/", index)
     app.router.add_get("/{name:app\\.(css|js)}", asset)
+    app.router.add_get("/api/info", info)
     app.router.add_get("/api/status", status)
     app.router.add_get("/api/config", get_config)
     app.router.add_post("/api/config", post_config)

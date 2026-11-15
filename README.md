@@ -217,9 +217,9 @@ report = await crawl_async("https://example.com/", storage="jsonl")
 
 `python -m opencrawler desktop` 会在 `127.0.0.1:8756` 起一个本地服务，并用
 Edge / Chrome 的 `--app` 模式打开**无地址栏的独立桌面窗口**：可视化编辑配置、启停任务、
-实时看 6 个指标与日志流、浏览与导出抓取结果。不依赖 tkinter / Qt / Electron。
+实时看 12 个指标与 60 秒吞吐趋势、日志流，搜索/筛选/导出抓取结果。不依赖 tkinter / Qt / Electron。
 
-Windows 上双击 `desktop/OpenCrawlerLauncher.exe`（33 KB Win32 启动器）即可一键运行；
+Windows 上双击 `desktop/OpenCrawlerLauncher.exe`（44 KB Win32 启动器）即可一键运行；
 执行 `python desktop/build_exe.py` 可生成完全独立的 `dist/OpenCrawlerLab.exe`（约 17 MiB，
 目标机器无需 Python）。详见 [desktop/README.md](desktop/README.md)。
 
@@ -307,7 +307,7 @@ src/opencrawler/
   pipeline.py    输出管线      storage/       JSONL / SQLite 后端
   plugins.py     插件加载      metrics.py     指标
   demo.py        内置演示站点  models.py      数据模型
-tests/           23 项单元测试 + 端到端测试
+tests/           48 项测试（单元 / 端到端 / 桌面接口 / 前端静态契约）
 examples/        配置与插件示例
 scripts/         压测与一键发布脚本
 ```

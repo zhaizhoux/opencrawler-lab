@@ -6,7 +6,7 @@
 | --- | --- |
 | 仓库 | **https://github.com/zhaizhoux/opencrawler-lab**（Public） |
 | 默认分支 | `main` |
-| 提交历史 | 9 个（完整重放本地历史，保留作者与日期） |
+| 提交历史 | 完整重放本地 `HEAD` 历史，保留作者与日期 |
 | 文件 | 59 个，与本地 `HEAD` 完全一致 |
 | 校验 | `GET /git/trees/main?recursive=1` 回读 59 个文件；关键文件齐全；无凭证或抓取数据泄露 |
 | Actions | https://github.com/zhaizhoux/opencrawler-lab/actions |
@@ -14,11 +14,14 @@
 三个仓库的源码归档 `opencrawler-lab.zip` / `opencrawler-java.zip` / `opencrawler-cpp.zip`
 （仓库上一级目录）均由 `git archive` 生成，不含 `.git`，可随时用于手动导入。
 
-| 仓库 | 独立回读 | CI |
+| 仓库 | 独立回读（GitHub API） | CI |
 | --- | --- | --- |
-| opencrawler-lab | Public / main / 59 文件 / 9 提交 / 无可疑文件 | success |
-| opencrawler-java | Public / main / 34 文件 / 2 提交 / 无可疑文件 | success |
-| opencrawler-cpp | Public / main / 27 文件 / 2 提交 / 无可疑文件 | success |
+| opencrawler-lab | Public / `main` / 59 文件 / 无可疑文件 | success |
+| opencrawler-java | Public / `main` / 34 文件 / 无可疑文件 | success |
+| opencrawler-cpp | Public / `main` / 27 文件 / 无可疑文件 | success |
+
+回读使用 `GET /repos/{owner}/{repo}`、`GET /git/trees/main?recursive=1`、
+`GET /commits`、`GET /actions/runs`，不依赖本地缓存。
 
 ---
 

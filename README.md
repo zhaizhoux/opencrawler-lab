@@ -244,11 +244,11 @@ Windows 上双击 `desktop/OpenCrawlerLauncher.exe`（33 KB Win32 启动器）�
 
 三个版本各自独立开源、共用同一套桌面前端与 REST + SSE 接口契约：
 
-| 仓库 | 状态 | 文件 / 提交 |
+| 仓库 | 状态 | 文件数 |
 | --- | --- | --- |
-| https://github.com/zhaizhoux/opencrawler-lab | Public · `main` · CI 通过 | 59 / 9 |
-| https://github.com/zhaizhoux/opencrawler-java | Public · `main` · CI 通过 | 34 / 2 |
-| https://github.com/zhaizhoux/opencrawler-cpp | Public · `main` · CI 通过 | 27 / 2 |
+| https://github.com/zhaizhoux/opencrawler-lab | Public · `main` · CI 通过 | 59 |
+| https://github.com/zhaizhoux/opencrawler-java | Public · `main` · CI 通过 | 34 |
+| https://github.com/zhaizhoux/opencrawler-cpp | Public · `main` · CI 通过 | 27 |
 
 均保留完整提交历史与作者信息，无凭证或抓取数据入库。欢迎 Star / Issue / PR。
 

@@ -81,6 +81,30 @@ python scripts/publish_github.py --no-commit      # 不自动 git add/commit
 
 ---
 
+## 一个脚本发布三个独立仓库（0.2.0 起）
+
+`--root` 让本脚本服务于任意本地仓库：它读取该目录的 Git 历史、README（用于空仓库初始化）
+与文件树，再用 API 通道重放，彼此完全独立。
+
+| 仓库 | 本地目录 | 语言 / 并发模型 |
+| --- | --- | --- |
+| [opencrawler-lab](https://github.com/zhaizhoux/opencrawler-lab) | 本仓库 | Python · asyncio |
+| [opencrawler-java](https://github.com/zhaizhoux/opencrawler-java) | `../opencrawler-java` | Java 21 · 虚拟线程 |
+| [opencrawler-cpp](https://github.com/zhaizhoux/opencrawler-cpp) | `../opencrawler-cpp` | C++20 · 线程池 |
+
+```bash
+# 新建仓库（自动建仓 + 初始化 + 重放全部提交）
+python scripts/publish_github.py --root ../opencrawler-java --repo opencrawler-java \
+  --description "零依赖、合规、高并发的 Java 21 虚拟线程爬虫学习框架" --mode api --no-commit
+python scripts/publish_github.py --root ../opencrawler-cpp --repo opencrawler-cpp \
+  --description "零第三方依赖、合规、高并发的 C++20 爬虫学习框架" --mode api --no-commit
+
+# 已有仓库追加本地新提交
+python scripts/publish_github.py --skip-create --mode api --no-commit
+```
+
+`--dry-run` 现在对尚未 `git init` 的目录也会安全返回计划（0 个提交），不会抛异常。
+
 ## 排障记录（本次发布真实遇到并已修复）
 
 1. **`github.com` 被代理阻断**：`CONNECT tunnel failed, 502`，直连超时，而

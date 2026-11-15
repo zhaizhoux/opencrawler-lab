@@ -233,8 +233,10 @@ def push_via_git(token: str, login: str, repo: str) -> int:
     remote_url = f"https://github.com/{login}/{repo}.git"
     git("remote", "remove", "origin", check=False)
     git("remote", "add", "origin", remote_url)
+    # GitHub git smart-http 只接受 Basic（用户名固定为 x-access-token），不接受 bearer
+    basic = base64.b64encode(f"x-access-token:{token}".encode("utf-8")).decode("ascii")
     push = subprocess.run(
-        ["git", "-c", f"http.extraheader=AUTHORIZATION: bearer {token}",
+        ["git", "-c", f"http.extraheader=AUTHORIZATION: basic {basic}",
          "push", "-u", "origin", "main"],
         cwd=ROOT, capture_output=True, text=True, encoding="utf-8", errors="replace",
     )
@@ -246,6 +248,18 @@ def push_via_git(token: str, login: str, repo: str) -> int:
 
 
 # ---------------------------------------------------------------- 通道 B：Git Data API
+def ensure_repository_initialized(base: str, token: str) -> str:
+    """空仓库的 Git Data API 全部返回 409，先用 Contents API 建一个初始提交。"""
+    readme = (ROOT / "README.md").read_bytes()
+    st, body = api("PUT", f"{base}/contents/README.md", token, {
+        "message": "Initialize repository",
+        "content": base64.b64encode(readme).decode("ascii"),
+    })
+    if st not in (200, 201) or not isinstance(body.get("commit"), dict):
+        raise RuntimeError(f"初始化空仓库失败: HTTP {st} {body.get('message')}")
+    return body["commit"]["sha"]
+
+
 def push_via_api(token: str, owner: str, repo: str) -> int:
     """用 Git Data API 重放本地提交历史，不依赖 github.com。"""
     base = f"/repos/{owner}/{repo}"
@@ -255,6 +269,8 @@ def push_via_api(token: str, owner: str, repo: str) -> int:
         return 7
 
     status, ref = api("GET", f"{base}/git/ref/heads/main", token)
+    message = str(ref.get("message", ""))
+    empty_repo = status == 409 or (status != 200 and "empty" in message.lower())
     remote_head = ref.get("object", {}).get("sha") if status == 200 else None
 
     blob_cache: dict[str, str] = {}
@@ -299,6 +315,9 @@ def push_via_api(token: str, owner: str, repo: str) -> int:
             print(f"远程已有 main，追加 1 个提交；共 {len(entries)} 个文件")
         else:
             parent = None
+            if empty_repo:
+                parent = ensure_repository_initialized(base, token)
+                print("空仓库已用 Contents API 建立初始提交，随后线性重放本地历史")
             for i, sha in enumerate(commits, 1):
                 entries = tree_entries(sha)
                 tree_sha = create_tree(entries)
@@ -306,10 +325,14 @@ def push_via_api(token: str, owner: str, repo: str) -> int:
                 new_head = create_commit(tree_sha, commit_meta(sha), parents)
                 parent = new_head
                 print(f"  重放提交 {i}/{len(commits)}: {sha[:8]} · {len(entries)} 个文件")
-            st, body = api("POST", f"{base}/git/refs", token,
-                           {"ref": "refs/heads/main", "sha": parent})
+            if empty_repo:
+                st, body = api("PATCH", f"{base}/git/refs/heads/main", token,
+                               {"sha": parent, "force": False})
+            else:
+                st, body = api("POST", f"{base}/git/refs", token,
+                               {"ref": "refs/heads/main", "sha": parent})
             if st not in (200, 201):
-                raise RuntimeError(f"创建 main 分支失败: HTTP {st} {body.get('message')}")
+                raise RuntimeError(f"写入 main 引用失败: HTTP {st} {body.get('message')}")
         api("PATCH", base, token, {"default_branch": "main"})
     except RuntimeError as exc:
         print(f"API 推送失败: {exc}", file=sys.stderr)

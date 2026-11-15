@@ -230,7 +230,7 @@ Windows 上双击 `desktop/OpenCrawlerLauncher.exe`（33 KB Win32 启动器）�
 | --- | --- | --- |
 | [opencrawler-lab](https://github.com/zhaizhoux/opencrawler-lab) | Python 3.10+ | `asyncio` + aiohttp |
 | [opencrawler-java](https://github.com/zhaizhoux/opencrawler-java) | Java 21 | 虚拟线程（Loom） |
-| [opencrawler-cpp](https://github.com/zhaizhoux/opencrawler-cpp) | C++20 | 线程池 + WinHTTP/cURL |
+| [opencrawler-cpp](https://github.com/zhaizhoux/opencrawler-cpp) | C++20 | 固定线程池 + WinHTTP / POSIX socket（零第三方依赖） |
 
 ## 自适应并发（0.2.0 新增）
 
@@ -242,8 +242,15 @@ Windows 上双击 `desktop/OpenCrawlerLauncher.exe`（33 KB Win32 启动器）�
 
 ## 已开源到 GitHub
 
-**https://github.com/zhaizhoux/opencrawler-lab** —— 公开仓库，`main` 分支，44 个文件，
-完整提交历史与作者信息。欢迎 Star / Issue / PR。
+三个版本各自独立开源、共用同一套桌面前端与 REST + SSE 接口契约：
+
+| 仓库 | 状态 | 文件 / 提交 |
+| --- | --- | --- |
+| https://github.com/zhaizhoux/opencrawler-lab | Public · `main` · CI 通过 | 59 / 9 |
+| https://github.com/zhaizhoux/opencrawler-java | Public · `main` · CI 通过 | 34 / 2 |
+| https://github.com/zhaizhoux/opencrawler-cpp | Public · `main` · CI 通过 | 27 / 2 |
+
+均保留完整提交历史与作者信息，无凭证或抓取数据入库。欢迎 Star / Issue / PR。
 
 `scripts/publish_github.py` 是配套的一键发布脚本，支持两条通道：标准 `git push`，以及
 `github.com` 不可达时自动切换的 `api.github.com` Git Data API（重放完整提交历史）。
